@@ -20,14 +20,14 @@ on:
       BUILD_DIFFERENT_ROM:
         description: "Command to initialize a different 'repo' project:"
         required: false
-        default: "repo init --depth=1 --no-repo-verify --git-lfs -u https://github.com/ProjectInfinity-X/manifest -b 16 -g default,-mips,-darwin,-notdefault"
+        default: "repo init --depth=1 --no-repo-verify --git-lfs -u https://github.com/crdroidandroid/android.git -b 15.0 -g default,-mips,-darwin,-notdefault"
       REMOVALS:
         description: "Folders to be removed before syncing:"
         required: false
       LOCAL_MANIFEST:
         description: "Personal local manifest [repository or raw]:"
         required: true
-        default: 'https://github.com/rsuntk-playground/local_manifests'
+        default: 'https://github.com/rsuplaygrnd/local_manifests'
       LOCAL_MANIFEST_BRANCH:
         description: "Personal local manifest's branch:"
         required: false
@@ -39,11 +39,11 @@ on:
       PRODUCT_NAME:
         description: "Product to build:"
         required: true
-        default: "infinity_X01BD-bp2a"
+        default: "lineage_X01BD"
       BUILD_COMMAND:
         description: 'Command to be used for compiling:'
         required: true
-        default: 'm bacon'
+        default: 'make bacon'
       BUILD_TYPE:
         description: 'Type of build:'
         required: true
