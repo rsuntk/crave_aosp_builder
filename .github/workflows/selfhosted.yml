@@ -20,7 +20,7 @@ on:
       BUILD_DIFFERENT_ROM:
         description: "Command to initialize a different 'repo' project:"
         required: false
-        default: "repo init --depth=1 --no-repo-verify --git-lfs -u https://github.com/crdroidandroid/android.git -b 15.0 -g default,-mips,-darwin,-notdefault"
+        default: "repo init --depth=1 --no-repo-verify --git-lfs -u https://github.com/rsuntk/crdroid_manifests.git -b 15.0 -g default,-mips,-darwin,-notdefault"
       REMOVALS:
         description: "Folders to be removed before syncing:"
         required: false
