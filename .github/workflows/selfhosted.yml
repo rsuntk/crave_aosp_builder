@@ -24,6 +24,7 @@ on:
       REMOVALS:
         description: "Folders to be removed before syncing:"
         required: false
+        default: 'prebuilts/clang/host/linux-x86'
       LOCAL_MANIFEST:
         description: "Personal local manifest [repository or raw]:"
         required: true
@@ -43,7 +44,7 @@ on:
       BUILD_COMMAND:
         description: 'Command to be used for compiling:'
         required: true
-        default: 'make bacon'
+        default: 'make bacon -j$(nproc --all)'
       BUILD_TYPE:
         description: 'Type of build:'
         required: true
