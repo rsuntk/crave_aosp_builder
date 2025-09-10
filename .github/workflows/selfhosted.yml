@@ -40,11 +40,11 @@ on:
       PRODUCT_NAME:
         description: "Product to build:"
         required: true
-        default: "lineage_X01BD"
+        default: "lineage_X01BD-bp1a"
       BUILD_COMMAND:
         description: 'Command to be used for compiling:'
         required: true
-        default: 'make bacon -j$(nproc --all)'
+        default: 'make bacon'
       BUILD_TYPE:
         description: 'Type of build:'
         required: true
