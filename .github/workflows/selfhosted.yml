@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-name: Crave Builder(self-hosted)
+name: Crave Builder (self-hosted)
 on:
   workflow_dispatch:
     # Various inputs to simplify usage of workflow.
@@ -14,13 +14,10 @@ on:
         description: 'Choose a base project:'
         required: true
         default: 'LineageOS 22.1'
-        type: choice
-        options:
-          - 'LineageOS 22.1'
       BUILD_DIFFERENT_ROM:
         description: "Command to initialize a different 'repo' project:"
         required: false
-        default: "repo init --depth=1 --no-repo-verify --git-lfs -u https://github.com/rsuplaygrnd/crdroid_manifests.git -b 15.0 -g default,-mips,-darwin,-notdefault"
+        default: "repo init --depth=1 --no-repo-verify --git-lfs -u https://github.com/rsuplaygrnd/crdroid_manifests.git -b 16.0 -g default,-mips,-darwin,-notdefault"
       REMOVALS:
         description: "Folders to be removed before syncing:"
         required: false
@@ -28,11 +25,11 @@ on:
       LOCAL_MANIFEST:
         description: "Personal local manifest [repository or raw]:"
         required: true
-        default: 'https://github.com/rsuplaygrnd/local_manifests'
+        default: 'https://github.com/rsuplaygrnd/local_manifest'
       LOCAL_MANIFEST_BRANCH:
         description: "Personal local manifest's branch:"
         required: false
-        default: 'x01bd'
+        default: 'X01BD-16.0'
       DEVICE_NAME:
         description: "Device's codename:"
         required: true
@@ -40,7 +37,7 @@ on:
       PRODUCT_NAME:
         description: "Product to build:"
         required: true
-        default: "lineage_X01BD-bp1a"
+        default: "lineage_X01BD-bp2a"
       BUILD_COMMAND:
         description: 'Command to be used for compiling:'
         required: true
@@ -48,7 +45,7 @@ on:
       BUILD_TYPE:
         description: 'Type of build:'
         required: true
-        default: 'userdebug'
+        default: 'user'
         type: choice
         options: 
         - 'eng'
@@ -91,8 +88,8 @@ jobs:
           rm -rf ${PWD}/crave.conf.sample          
         fi
       env:
-        CRAVE_USERNAME: ${{  secrets.CRAVE_USERNAME  }}
-        CRAVE_TOKEN: ${{  secrets.CRAVE_TOKEN  }}
+        CRAVE_USERNAME: ${{ secrets.CRAVE_USERNAME  }}
+        CRAVE_TOKEN: ${{ secrets.CRAVE_TOKEN  }}
 
     - name: Run crave devspace
       run: |
