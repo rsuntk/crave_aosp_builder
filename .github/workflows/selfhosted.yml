@@ -441,7 +441,6 @@ jobs:
         echo "Check foss.crave.io Dashboard to see builds"
         echo "Running build's log will show up here!"
 
-
         crave ${{ secrets.CRAVE_FLAGS }} run --no-patch ${PAID} ${CLEAN} -- "rm -rf .repo/local_manifests/ ${{ github.event.inputs.REMOVALS }} && \
         # Clone local_manifests repository
         $BUILD_DIFFERENT_ROM ; \
@@ -456,7 +455,7 @@ jobs:
 
         # Set up build environment
         export BUILD_USERNAME=${{ github.actor }} ; \
-        export BUILD_HOSTNAME=crave ; \
+        export BUILD_HOSTNAME=nobody ; \
         source build/envsetup.sh && \
 
         echo "Repository: ${{ github.repository }}"; \
