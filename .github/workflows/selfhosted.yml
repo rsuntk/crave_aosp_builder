@@ -10,47 +10,10 @@ on:
   workflow_dispatch:
     # Various inputs to simplify usage of workflow.
     inputs:
-      BASE_PROJECT:
-        description: 'Choose a base project:'
+      CRAVE_CMD:
+        description: 'The commands for running crave'
         required: true
-        default: 'LineageOS 22.1'
-      BUILD_DIFFERENT_ROM:
-        description: "Command to initialize a different 'repo' project:"
-        required: false
-        default: "repo init --depth=1 --no-repo-verify --git-lfs -u https://github.com/rsuplaygrnd/crdroid_manifests.git -b 16.0 -g default,-mips,-darwin,-notdefault"
-      REMOVALS:
-        description: "Folders to be removed before syncing:"
-        required: false
-        default: 'prebuilts/clang/host/linux-x86'
-      LOCAL_MANIFEST:
-        description: "Personal local manifest [repository or raw]:"
-        required: true
-        default: 'https://github.com/rsuplaygrnd/local_manifest'
-      LOCAL_MANIFEST_BRANCH:
-        description: "Personal local manifest's branch:"
-        required: false
-        default: 'X01BD-16.0'
-      DEVICE_NAME:
-        description: "Device's codename:"
-        required: true
-        default: "X01BD"
-      PRODUCT_NAME:
-        description: "Product to build:"
-        required: true
-        default: "lineage_X01BD-bp2a"
-      BUILD_COMMAND:
-        description: 'Command to be used for compiling:'
-        required: true
-        default: 'make bacon'
-      BUILD_TYPE:
-        description: 'Type of build:'
-        required: true
-        default: 'user'
-        type: choice
-        options: 
-        - 'eng'
-        - 'userdebug'
-        - 'user' 
+        default: 'curl -LSs https://raw.githubusercontent.com/rsuplaygrnd/krep_skrip/refs/heads/risingOS/build.sh | bash -'
       CLEAN_BUILD:
         description: 'Build with a clean workspace?'
         required: true
@@ -61,223 +24,13 @@ on:
         - 'no'
 
 jobs:
-  Start-Runner:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up environment
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y tmux
-
-      # Download and configure 'crave'.
-    - name: Configure the 'crave' environment
-      run: |
-        echo "DCDEVSPACE status: ${DCDEVSPACE}"
-        if [[ $DCDEVSPACE == *1* ]]; then
-        echo 'No need to set up crave, we are already running in devspace!'
-        else
-          mkdir ${HOME}/bin/
-          curl -s https://raw.githubusercontent.com/accupara/crave/master/get_crave.sh | bash -s --
-          mv ${PWD}/crave ${HOME}/bin/
-          sudo ln -sf /home/${USER}/bin/crave /usr/bin/crave
-          envsubst < ${PWD}/crave.conf.sample >> ${PWD}/crave.conf
-          rm -rf ${PWD}/crave.conf.sample          
-        fi
-      env:
-        CRAVE_USERNAME: ${{ secrets.CRAVE_USERNAME  }}
-        CRAVE_TOKEN: ${{ secrets.CRAVE_TOKEN  }}
-
-    - name: Run crave devspace
-      run: |
-        crave ${{ secrets.CRAVE_FLAGS }} devspace -- "echo "Looking for runner..."
-          # Look for whether there's a runner folder set up
-          if [ -f actions-runner/run.sh ] ; then
-            echo "Runner found! Restarting it..."
-          else
-            echo "Error! Runner not found!"
-            exit 1
-          fi
-
-        if tmux has-session -t ghactions; then 
-          echo "Runner is already Running" 
-        else 
-          tmux kill-session -t ghactions;
-          tmux new-session -d -s ghactions 
-          tmux send-keys -t ghactions './actions-runner/run.sh' Enter 
-          echo "Runner Started"
-        fi "
-  prepare:
-    name: Prepare for Building
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check-out to repository
-      uses: actions/checkout@v4
-
-    - name: Check Credentials
-      run: |
-        if [[ -z "${{ secrets.CRAVE_TOKEN }}" || -z "${{ secrets.CRAVE_USERNAME }}" ]]; then
-          echo "Crave Credentials Not Configured! Exiting..."
-          exit 1
-        fi
-        bash scripts/env-checker.sh
-
-    - name: Set Project variables
-      id: proj-variables
-      run: |
-        case "${{ github.event.inputs.BASE_PROJECT }}" in
-        "LineageOS 22.1")
-          export PROJECTFOLDER="/crave-devspaces/Lineage22"
-          export PROJECTID="93"
-          export REPO_INIT="repo init -u https://github.com/accupara/los22.git -b lineage-22.1 --git-lfs --depth=1"
-        ;;
-        esac
-        
-        LUNCH="lunch ${{ github.event.inputs.PRODUCT_NAME }}-${{ github.event.inputs.BUILD_TYPE }}"
-
-          if [[ "${{ github.event.inputs.LOCAL_MANIFEST }}" =~ \.xml(/)?$ ]]; then
-            local_manifest_url="${{ github.event.inputs.LOCAL_MANIFEST }}"
-            export local_manifest_url="${local_manifest_url%/}"  # remove trailing slash if it exists
-            LOCAL_MANIFEST="mkdir -p .repo/local_manifests && rm -rf .repo/local_manifests/* || true && curl -o .repo/local_manifests/local_manifest.xml ${local_manifest_url}"
-          else
-            export LOCAL_MANIFEST="git clone ${{ github.event.inputs.LOCAL_MANIFEST }} --depth 1 -b ${{github.event.inputs.LOCAL_MANIFEST_BRANCH}} .repo/local_manifests"
-          fi
-
-        echo "Building on ${{ github.event.inputs.BASE_PROJECT }} project"
-        echo "PROJECTFOLDER=$PROJECTFOLDER" >> "$GITHUB_OUTPUT"
-        echo "PROJECTID=$PROJECTID"  >> "$GITHUB_OUTPUT"
-        echo "REPO_INIT=$REPO_INIT" >> "$GITHUB_OUTPUT"
-        echo "LUNCH=$LUNCH" >> "$GITHUB_ENV"
-        echo "LUNCH=$LUNCH" >> "$GITHUB_OUTPUT"
-        echo "LOCAL_MANIFEST=$LOCAL_MANIFEST" >> "$GITHUB_ENV"
-        echo "LOCAL_MANIFEST=$LOCAL_MANIFEST" >> "$GITHUB_OUTPUT"
-
-    - name: Display Run Parameters # Credit to azwhikaru for this part
-      run: |
-        echo "::group::User Environment Variables"
-        echo "Base Project: ${{ github.event.inputs.BASE_PROJECT }}"
-        echo "Extra Repo Init: ${{ github.event.inputs.BUILD_DIFFERENT_ROM }}"
-        echo "Removals: ${{ github.event.inputs.REMOVALS }}"
-        echo "Local Manifest: ${{ github.event.inputs.LOCAL_MANIFEST }}"
-        echo "Local Manifest Branch: ${{ github.event.inputs.LOCAL_MANIFEST_BRANCH }}"
-        echo "Device Name: ${{ github.event.inputs.DEVICE_NAME }}"
-        echo "Breakfast/Lunch Target: ${{ env.LUNCH }}"
-        echo "Build Command: ${{ github.event.inputs.BUILD_COMMAND }}"
-        echo "Clean Build: ${{ github.event.inputs.CLEAN_BUILD }}"
-        echo "::endgroup::"
-
-        echo "Displaying Local Manifests"
-        if [[ -z "${{ secrets.DISPLAY_FALSE }}" ]]; then
-          bash -c "$LOCAL_MANIFEST"
-          cat .repo/local_manifests/*.xml
-        else
-          echo "Displaying is disabled through secrets."
-        fi
-    outputs:
-      PROJECTFOLDER: ${{ steps.proj-variables.outputs.PROJECTFOLDER }}
-      PROJECTID: ${{ steps.proj-variables.outputs.PROJECTID }}
-      REPO_INIT: ${{ steps.proj-variables.outputs.REPO_INIT }}
-      LUNCH: ${{ steps.proj-variables.outputs.LUNCH }}
-      LOCAL_MANIFEST: ${{ steps.proj-variables.outputs.LOCAL_MANIFEST }}
-
-  test:
-    name: Test Local Manifests
-    needs: prepare
-    runs-on: ubuntu-latest
-    steps:
-      # Accept Project Variables
-    - name: Set Repo Project
-      run: |
-        PROJECTFOLDER="${{ needs.prepare.outputs.PROJECTFOLDER }}"
-        PROJECTID="${{ needs.prepare.outputs.PROJECTID }}"
-        REPO_INIT="${{ needs.prepare.outputs.REPO_INIT }}"
-        LUNCH="${{ needs.prepare.outputs.LUNCH }}"
-        LOCAL_MANIFEST="${{ needs.prepare.outputs.LOCAL_MANIFEST }}"
-
-        echo "PROJECTFOLDER=$PROJECTFOLDER" >> "$GITHUB_ENV"
-        echo "PROJECTID=$PROJECTID"  >> "$GITHUB_ENV"
-        echo "REPO_INIT=$REPO_INIT" >> "$GITHUB_ENV"
-        echo "LUNCH=$LUNCH" >> "$GITHUB_ENV"
-        echo "LOCAL_MANIFEST=$LOCAL_MANIFEST" >> "$GITHUB_ENV"
-
-      # Download and configure 'repo'.
-    - name: Configure the 'repo' environment
-      run: |
-        # Check if repo is already installed
-        if ! command -v repo >/dev/null 2>&1; then
-          echo "Repo not found. Installing now..."
-          # Create bin directory if it doesn't exist
-          mkdir -p ~/bin
-          # Download repo script
-          curl https://storage.googleapis.com/git-repo-downloads/repo >> ~/bin/repo
-          # Make repo script executable
-          chmod a+x ~/bin/repo
-          # Create symbolic link to /usr/bin/repo
-          sudo ln -sf "/home/$(whoami)/bin/repo" "/usr/bin/repo"
-          echo "Repo installation complete."
-        else
-          echo "Repo already installed."
-        fi
-      continue-on-error: true
-      
-      # Generate 'git' credential in base of the workflow's author.
-    - name: Set-up 'git' credential(s)
-      run: |
-        git config --global user.name "${{ github.actor }}"
-        git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-
-      # Test Your Personal 'Local Manifests' against The ROM
-    - name: Test Local Manifests
-      if: ${{ github.event.inputs.BUILD_DIFFERENT_ROM != 'skip' }}
-      run: |
-        rm -rf tester
-        mkdir tester
-        cd tester 
-        if [ "${{ github.event.inputs.BUILD_DIFFERENT_ROM }}" == "echo 'Build Starting!'" ]; then
-          $REPO_INIT
-        else
-          ${{ github.event.inputs.BUILD_DIFFERENT_ROM }}
-        fi 
-
-        bash -c "$LOCAL_MANIFEST"
-
-        timeout 1m repo sync --force-sync || { exit_code=$?; [ $exit_code -eq 124 ] || (echo "Error: Process failed with exit code $exit_code"; exit $exit_code); }
-        du -csh . # Output Size when done
-        rm -rf .repo
-      timeout-minutes: 10
-    outputs:
-      PROJECTFOLDER: ${{ needs.prepare.outputs.PROJECTFOLDER }}
-      PROJECTID: ${{ needs.prepare.outputs.PROJECTID }}
-      REPO_INIT: ${{ needs.prepare.outputs.REPO_INIT }}
-      LUNCH: ${{ needs.prepare.outputs.LUNCH }}
-      LOCAL_MANIFEST: "${{ needs.prepare.outputs.LOCAL_MANIFEST }}"
-
   build:
     timeout-minutes: 1440
     name: Build using foss.crave.io
-    needs: test
     runs-on: self-hosted
     concurrency:
       group: ${{ github.repository_owner }}
     steps:
-      # Accept Project Variables
-    - name: Set Repo Project
-      run: |
-        PROJECTFOLDER="${{ needs.test.outputs.PROJECTFOLDER }}"
-        PROJECTID="${{ needs.test.outputs.PROJECTID }}"
-        REPO_INIT="${{ needs.test.outputs.REPO_INIT }}"
-        LUNCH="${{ needs.test.outputs.LUNCH }}"
-        LOCAL_MANIFEST="${{ needs.test.outputs.LOCAL_MANIFEST }}"
-
-        echo "PROJECTFOLDER=$PROJECTFOLDER" >> "$GITHUB_ENV"
-        echo "PROJECTID=$PROJECTID"  >> "$GITHUB_ENV"
-        echo "REPO_INIT=$REPO_INIT" >> "$GITHUB_ENV"
-        echo "LUNCH=$LUNCH" >> "$GITHUB_ENV"
-        echo "LOCAL_MANIFEST=$LOCAL_MANIFEST" >> "$GITHUB_ENV"
-
       # Send Build 'start' notification
     - name: Telegram Notification
       continue-on-error: true
@@ -346,7 +99,7 @@ jobs:
         if grep -q "$PROJECTFOLDER" <(crave clone list --json | jq -r '.clones[]."Cloned At"') || [[ "${DCDEVSPACE}" == "1" ]]; then
           crave clone destroy -y $PROJECTFOLDER || echo "Error removing $PROJECTFOLDER"
         else          
-        echo "Skipping removal"
+          echo "Skipping removal"
         fi
 
         if [[ $DCDEVSPACE == *1* ]]; then
@@ -406,20 +159,7 @@ jobs:
         cd $PROJECTFOLDER
         if grep -q "$PROJECTFOLDER" <(crave clone list --json | jq -r '.clones[]."Cloned At"') || [[ "${DCDEVSPACE}" == "1" ]]; then
           echo "Using Crave Clone... skipping"
-        else
-          echo "Running $REPO_INIT"
-          $REPO_INIT
         fi
-
-        if [ "${{ github.event.inputs.BUILD_DIFFERENT_ROM }}" == "echo 'Build Starting!'" ]; then
-          export BUILD_DIFFERENT_ROM="$REPO_INIT"
-          echo "Building $BUILD_DIFFERENT_ROM"
-        else
-          export BUILD_DIFFERENT_ROM="${{ github.event.inputs.BUILD_DIFFERENT_ROM }}"
-          echo "Building $BUILD_DIFFERENT_ROM"
-        fi
-        echo "BUILD_DIFFERENT_ROM=$BUILD_DIFFERENT_ROM" >> "$GITHUB_ENV"
-        echo "We will be building with $LUNCH"
 
       # Create a 'crave' job for building.
     - name: Start compilation through 'crave'
@@ -441,30 +181,7 @@ jobs:
         echo "Check foss.crave.io Dashboard to see builds"
         echo "Running build's log will show up here!"
 
-        crave ${{ secrets.CRAVE_FLAGS }} run --no-patch ${PAID} ${CLEAN} -- "rm -rf .repo/local_manifests/ ${{ github.event.inputs.REMOVALS }} && \
-        # Clone local_manifests repository
-        $BUILD_DIFFERENT_ROM ; \
-        $LOCAL_MANIFEST && \
-
-        # Sync the repositories
-        if [ -f /usr/bin/resync ]; then
-          /usr/bin/resync # For compatibility with Omansh's Docker image 
-        else
-          /opt/crave/resync.sh
-        fi && \
-
-        # Set up build environment
-        export BUILD_USERNAME=${{ github.actor }} ; \
-        export BUILD_HOSTNAME=nobody ; \
-        source build/envsetup.sh && \
-
-        echo "Repository: ${{ github.repository }}"; \
-        echo "Run ID: ${{ github.run_id }}"; \
-
-        # Build the ROM
-        $LUNCH && \
-        make installclean && \
-        ${{ github.event.inputs.BUILD_COMMAND }}"
+        crave ${{ secrets.CRAVE_FLAGS }} run --no-patch ${PAID} ${CLEAN} -- "${{ inputs.CRAVE_CMD }}"
       timeout-minutes: 1440
 
       # Send Build 'status' notification (Success)
@@ -550,12 +267,12 @@ jobs:
         crave ssh -- "export TG_UPLOAD_LIMIT="${{ secrets.TG_UPLOAD_LIMIT }}"; bash /opt/crave/telegram/upload.sh '${{ github.event.inputs.DEVICE_NAME }}' '${{ secrets.EXTRA_FILES }}'"
       continue-on-error: true
 
-      # Remove 'crave' clone
-    #- name: Destroy Crave Clone
-    #  if: ${{ always() }}
-    #  run: |
-    #    if grep -q "$PROJECTFOLDER" <(crave clone list --json | jq -r '.clones[]."Cloned At"') || [[ "${DCDEVSPACE}" == "1" ]]; then
-    #      crave clone destroy -y $PROJECTFOLDER || echo "Error removing $PROJECTFOLDER"
-    #    else          
-    #      echo "Skipping removal"
-    #    fi
+     # Remove 'crave' clone
+    - name: Destroy Crave Clone
+      if: ${{ always() }}
+      run: |
+        if grep -q "$PROJECTFOLDER" <(crave clone list --json | jq -r '.clones[]."Cloned At"') || [[ "${DCDEVSPACE}" == "1" ]]; then
+          crave clone destroy -y $PROJECTFOLDER || echo "Error removing $PROJECTFOLDER"
+        else          
+          echo "Skipping removal"
+        fi
